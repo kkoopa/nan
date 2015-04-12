@@ -120,4 +120,8 @@
         "target_name" : "indexedinterceptors"
       , "sources"     : [ "cpp/indexedinterceptors.cpp" ]
     }
+    , {
+        "target_name" : "converters"
+      , "sources"     : [ "cpp/converters.cpp" ]
+    }
 ]}

@@ -43,21 +43,24 @@ void SetterGetter::Init(v8::Handle<v8::Object> target) {
   v8::Local<v8::FunctionTemplate> tpl =
     NanNew<v8::FunctionTemplate>(SetterGetter::New);
   settergetter_constructor.Reset(tpl);
-  tpl->SetClassName(NanNew<v8::String>("SetterGetter"));
+  tpl->SetClassName(NanNew<v8::String>("SetterGetter").ToLocalChecked());
   tpl->InstanceTemplate()->SetInternalFieldCount(1);
   NanSetPrototypeMethod(tpl, "log", SetterGetter::Log);
   v8::Local<v8::ObjectTemplate> proto = tpl->PrototypeTemplate();
-  NanSetAccessor(proto, NanNew<v8::String>("prop1"), SetterGetter::GetProp1);
   NanSetAccessor(
-    proto
-  , NanNew<v8::String>("prop2")
-  , SetterGetter::GetProp2
-  , SetterGetter::SetProp2
+      proto
+    , NanNew("prop1").ToLocalChecked()
+    , SetterGetter::GetProp1);
+  NanSetAccessor(
+      proto
+    , NanNew<v8::String>("prop2").ToLocalChecked()
+    , SetterGetter::GetProp2
+    , SetterGetter::SetProp2
   );
 
   v8::Local<v8::Function> createnew =
     NanNew<v8::FunctionTemplate>(CreateNew)->GetFunction();
-  target->Set(NanNew<v8::String>("create"), createnew);
+  NanSet(target, NanNew<v8::String>("create").ToLocalChecked(), createnew);
 }
 
 v8::Handle<v8::Value> SetterGetter::NewInstance () {
@@ -100,7 +103,7 @@ NAN_GETTER(SetterGetter::GetProp1) {
     , ")\n"
     , sizeof (settergetter->log) - 1 - strlen(settergetter->log));
 
-  info.GetReturnValue().Set(NanNew(settergetter->prop1));
+  info.GetReturnValue().Set(NanNew(settergetter->prop1).ToLocalChecked());
 }
 
 NAN_GETTER(SetterGetter::GetProp2) {
@@ -122,7 +125,7 @@ NAN_GETTER(SetterGetter::GetProp2) {
     , ")\n"
     , sizeof (settergetter->log) - 1 - strlen(settergetter->log));
 
-  info.GetReturnValue().Set(NanNew(settergetter->prop2));
+  info.GetReturnValue().Set(NanNew(settergetter->prop2).ToLocalChecked());
 }
 
 NAN_SETTER(SetterGetter::SetProp2) {
@@ -154,7 +157,7 @@ NAN_METHOD(SetterGetter::Log) {
   SetterGetter* settergetter =
     NanObjectWrap::Unwrap<SetterGetter>(info.This());
 
-  info.GetReturnValue().Set(NanNew(settergetter->log));
+  info.GetReturnValue().Set(NanNew(settergetter->log).ToLocalChecked());
 }
 
 NODE_MODULE(accessors, SetterGetter::Init)

@@ -29,6 +29,10 @@ LINT_SOURCES = \
 	test/cpp/gc.cpp \
 	test/cpp/indexedinterceptors.cpp \
 	test/cpp/morenews.cpp \
+	test/cpp/converters.cpp \
+	test/cpp/isolatedata.cpp \
+	test/cpp/makecallback.cpp \
+	test/cpp/morenews.cpp \
 	test/cpp/multifile1.cpp \
 	test/cpp/multifile2.cpp \
 	test/cpp/multifile2.h \
@@ -42,8 +46,10 @@ LINT_SOURCES = \
 	test/cpp/returnnull.cpp \
 	test/cpp/returnundefined.cpp \
 	test/cpp/returnvalue.cpp \
+	test/cpp/settemplate.cpp \
 	test/cpp/strings.cpp \
 	test/cpp/symbols.cpp \
+	test/cpp/threadlocal.cpp \
 	test/cpp/trycatch.cpp \
 	test/cpp/weak.cpp \
 	test/cpp/weak2.cpp \

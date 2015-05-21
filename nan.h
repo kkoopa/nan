@@ -250,6 +250,10 @@ inline void nauv_key_set(nauv_key_t* key, void* value) {
 template<typename T>
 v8::Local<T> NanNew(v8::Handle<T>);
 
+#if defined(V8_MAJOR_VERSION) && (V8_MAJOR_VERSION > 4 ||                      \
+  (V8_MAJOR_VERSION == 4 && defined(V8_MINOR_VERSION) && V8_MINOR_VERSION >= 3))
+  typedef v8::WeakCallbackType NanWeakCallbackType;
+#else
 struct NanWeakCallbackType {
   enum E {kParameter, kInternalFields};
   E type;
@@ -257,6 +261,7 @@ struct NanWeakCallbackType {
   inline bool operator==(E other) { return other == this->type; }
   inline bool operator!=(E other) { return !operator==(other); }
 };
+#endif
 
 #if NODE_MODULE_VERSION > NODE_0_10_MODULE_VERSION
 

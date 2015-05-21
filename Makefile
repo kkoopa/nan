@@ -21,6 +21,8 @@ LINT_SOURCES = \
 	nan_converters_pre_43_inl.h \
 	nan_implementation_12_inl.h \
 	nan_implementation_pre_12_inl.h \
+	nan_maybe_43_inl.h \
+	nan_maybe_pre_43_inl.h \
 	nan_new.h \
 	nan_string_bytes.h \
 	nan_weak.h \

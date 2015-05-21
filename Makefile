@@ -24,6 +24,8 @@ LINT_SOURCES = \
 	nan_maybe_43_inl.h \
 	nan_maybe_pre_43_inl.h \
 	nan_new.h \
+	nan_persistent_12_inl.h \
+	nan_persistent_pre_12_inl.h \
 	nan_string_bytes.h \
 	nan_weak.h \
 	test/cpp/accessors.cpp \

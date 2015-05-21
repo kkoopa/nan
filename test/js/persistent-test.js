@@ -11,7 +11,7 @@ const test     = require('tap').test
     , bindings = require('bindings')({ module_root: testRoot, bindings: 'persistent' });
 
 test('persistent', function (t) {
-  t.plan(12);
+  t.plan(14);
 
   var persistent = bindings;
   t.type(persistent.save1, 'function');

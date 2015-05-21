@@ -85,10 +85,11 @@
     NAN_DISALLOW_MOVE(CLASS)
 
 #define NODE_0_10_MODULE_VERSION 11
-#define NODE_0_12_MODULE_VERSION 12
+#define NODE_0_12_MODULE_VERSION 14
 #define ATOM_0_21_MODULE_VERSION 41
 #define IOJS_1_0_MODULE_VERSION  42
 #define IOJS_1_1_MODULE_VERSION  43
+#define IOJS_2_0_MODULE_VERSION  44
 
 #define TYPE_CHECK(T, S)                                                       \
     while (false) {                                                            \
@@ -117,7 +118,6 @@ typedef v8::String::ExternalOneByteStringResource
 template<typename T>
 class NanNonCopyablePersistentTraits :
     public v8::NonCopyablePersistentTraits<T> {};
-
 template<typename T>
 class NanCopyablePersistentTraits :
     public v8::CopyablePersistentTraits<T> {};
@@ -250,16 +250,26 @@ inline void nauv_key_set(nauv_key_t* key, void* value) {
 template<typename T>
 v8::Local<T> NanNew(v8::Handle<T>);
 
+struct NanWeakCallbackType {
+  enum E {kParameter, kInternalFields};
+  E type;
+  NanWeakCallbackType(E other) : type(other) {}
+  inline bool operator==(E other) { return other == this->type; }
+  inline bool operator!=(E other) { return !operator==(other); }
+};
+
 #if NODE_MODULE_VERSION > NODE_0_10_MODULE_VERSION
-template<typename T, typename P> class NanWeakCallbackData;
-template<typename T, typename M>
-class NanPersistent : public v8::Persistent<T, M> {
+
+template<typename P> class NanWeakCallbackInfo;
+
+template<typename T, typename M> class NanPersistent :
+    public v8::Persistent<T, M> {
  public:
   NAN_INLINE NanPersistent() : v8::Persistent<T, M>() {}
 
-  template<typename S>
-  NAN_INLINE NanPersistent(v8::Handle<S> that) :
+  template<typename S> NAN_INLINE NanPersistent(v8::Handle<S> that) :
       v8::Persistent<T, M>(v8::Isolate::GetCurrent(), that) {}
+
 
   template<typename S, typename M2>
   NAN_INLINE NanPersistent(const v8::Persistent<S, M2> &that) :
@@ -279,19 +289,26 @@ class NanPersistent : public v8::Persistent<T, M> {
 
   template<typename P>
   NAN_INLINE void SetWeak(
-    P *parameter,
-    typename NanWeakCallbackData<T, P>::Callback callback) {
-    SetWeak<T, P>(parameter, callback);
-  }
+    P *parameter
+    , typename NanWeakCallbackInfo<P>::Callback callback
+    , NanWeakCallbackType type);
 
-  template<typename S, typename P>
-  NAN_INLINE void SetWeak(
-    P *parameter,
-    typename NanWeakCallbackData<S, P>::Callback callback) {
-    TYPE_CHECK(S, T);
-    (new NanWeakCallbackData<S, P>(this, parameter, callback))->Revive();
+ private:
+  NAN_INLINE T *operator*() const { return *NanPersistentBase<T>::persistent; }
+
+  template<typename S, typename M2>
+  NAN_INLINE void Copy(const NanPersistent<S, M2> &that) {
+    TYPE_CHECK(T, S);
+
+    this->Reset();
+
+    if (!that.IsEmpty()) {
+      this->Reset(that);
+      M::Copy(that, this);
+    }
   }
 };
+
 
 #else
 static const int kNoInternalFieldIndex = -1;
@@ -299,7 +316,6 @@ static const int kNoInternalFieldIndex = -1;
 template<typename T>
 class NanPersistentBase {
   v8::Persistent<T> persistent;
-  uint16_t wrapper_class_id;
   template<typename U, typename M>
   friend v8::Local<U> NanNew(const NanPersistent<U, M> &p);
 
@@ -368,20 +384,9 @@ class NanPersistentBase {
 
   template<typename P>
   NAN_INLINE void SetWeak(
-    P *parameter,
-    typename NanWeakCallbackData<T, P>::Callback callback) {
-    SetWeak<T, P>(parameter, callback);
-  }
-
-  template<typename S, typename P>
-  NAN_INLINE void SetWeak(
-    P *parameter,
-    typename NanWeakCallbackData<S, P>::Callback callback) {
-    TYPE_CHECK(S, T);
-
-    (new NanWeakCallbackData<S, P>(
-        &this->persistent, parameter, callback))->Revive();
-  }
+    P *parameter
+    , typename NanWeakCallbackData<T, P>::Callback callback
+    , NanWeakCallbackType type);
 
   NAN_INLINE void ClearWeak() { persistent.ClearWeak(); }
 
@@ -393,16 +398,9 @@ class NanPersistentBase {
 
   NAN_INLINE bool IsWeak() const { return persistent.IsWeak(); }
 
-  NAN_INLINE void SetWrapperClassId(uint16_t class_id) {
-    wrapper_class_id = class_id;
-    persistent.SetWrapperClassId(class_id);
-  }
-
-  NAN_INLINE uint16_t WrapperClassId() const { return wrapper_class_id; }
-
  private:
   NAN_INLINE explicit NanPersistentBase(v8::Persistent<T> that) :
-      persistent(that), wrapper_class_id(0) { }
+      persistent(that) { }
   template<typename S, typename M> friend class NanPersistent;
 };
 
@@ -1742,99 +1740,7 @@ class NanObjectWrap : public node::ObjectWrap {
 
 //=== Weak Persistent Handling =================================================
 
-#if NODE_MODULE_VERSION >= NODE_0_12_MODULE_VERSION
-# define NAN_WEAK_CALLBACK_DATA_TYPE_ \
-    const v8::WeakCallbackData<T, NanWeakCallbackData<T, P> > &
-# define NAN_WEAK_CALLBACK_SIG_ NAN_WEAK_CALLBACK_DATA_TYPE_
-#else
-# define NAN_WEAK_CALLBACK_DATA_TYPE_ void *
-# define NAN_WEAK_CALLBACK_SIG_ \
-    v8::Persistent<v8::Value>, NAN_WEAK_CALLBACK_DATA_TYPE_
-#endif
-
-template <typename T, typename P>
-class NanWeakCallbackData {
- public:  // constructors
-  inline ~NanWeakCallbackData();
-
- private:  // constructors
-  NAN_DISALLOW_ASSIGN_COPY_MOVE(NanWeakCallbackData)
-
- public:
-  typedef void (*Callback)(
-      NanWeakCallbackData &data  // NOLINT(runtime/references)
-      );
-  NanWeakCallbackData(v8::Persistent<T> *handle, P *param, Callback cb)
-    : persistent(), parameter(param), callback(cb) {
-    /* assumes v8::Persistent<T> exhibits bitwise copy semantics */
-    std::memcpy(&persistent, handle, sizeof(persistent));
-  }
-  template<typename S, typename M> friend class NanPersistent;
-
- public:  // member functions
-  v8::Local<T> GetValue() const { return NanNew(persistent); }
-
-  P *GetParameter() const { return parameter; }
-  bool IsNearDeath() const { return persistent.IsNearDeath(); }
-  inline void Revive();
-
- private:  // static member functions
-  static
-  void
-  invoke(NAN_WEAK_CALLBACK_SIG_ data) {
-    NanWeakCallbackData * wcbd = unwrap(data);
-    wcbd->callback(*wcbd);
-    if (wcbd->IsNearDeath()) {
-      delete wcbd;
-    }
-  }
-
-  static inline
-  NanWeakCallbackData *
-  unwrap(NAN_WEAK_CALLBACK_DATA_TYPE_ data);
-
- private:  // data members
-  v8::Persistent<T> persistent;
-  P *const parameter;
-  Callback const callback;
-};
-
-#undef NAN_WEAK_CALLBACK_DATA_TYPE_
-#undef NAN_WEAK_CALLBACK_SIG_
-
-#if NODE_MODULE_VERSION >= NODE_0_12_MODULE_VERSION
-
-template <typename T, typename P>
-NanWeakCallbackData<T, P>::~NanWeakCallbackData() { persistent.Reset(); }
-
-template <typename T, typename P>
-void NanWeakCallbackData<T, P>::Revive() { persistent.SetWeak(this, invoke); }
-
-template <typename T, typename P>
-NanWeakCallbackData<T, P> *
-NanWeakCallbackData<T, P>::unwrap(
-    const v8::WeakCallbackData<T, NanWeakCallbackData> &data) {
-  return data.GetParameter();
-}
-
-#else
-
-template <typename T, typename P>
-NanWeakCallbackData<T, P>::~NanWeakCallbackData() {
-  persistent.Dispose();
-  persistent.Clear();
-}
-
-template <typename T, typename P>
-void NanWeakCallbackData<T, P>::Revive() { persistent.MakeWeak(this, invoke); }
-
-template <typename T, typename P>
-NanWeakCallbackData<T, P> *
-NanWeakCallbackData<T, P>::unwrap(void *data) {
-  return static_cast<NanWeakCallbackData*>(data);
-}
-
-#endif
+#include "nan_weak.h"
 
 //=== Export ==================================================================
 

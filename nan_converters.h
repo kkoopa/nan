@@ -1,3 +1,11 @@
+/*********************************************************************
+ * NAN - Native Abstractions for Node.js
+ *
+ * Copyright (c) 2015 NAN contributors
+ *
+ * MIT License <https://github.com/nodejs/nan/blob/master/LICENSE.md>
+ ********************************************************************/
+
 #ifndef NAN_CONVERTERS_H_
 #define NAN_CONVERTERS_H_
 
@@ -54,4 +62,4 @@ typename Nan::imp::ToFactory<T>::return_t NanTo(v8::Handle<v8::Value> val) {
 # include "nan_converters_pre_43_inl.h"
 #endif
 
-#endif  // NAN_CONVERTERS_H
+#endif  // NAN_CONVERTERS_H_

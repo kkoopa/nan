@@ -15,10 +15,14 @@ LINT_SOURCES = \
 	examples/async_pi_estimate/sync.cc \
 	examples/async_pi_estimate/sync.h \
 	nan.h \
-	nan_string_bytes.h \
+	nan_callbacks.h \
+	nan_converters.h \
+	nan_converters_43_inl.h \
+	nan_converters_pre_43_inl.h \
 	nan_implementation_12_inl.h \
 	nan_implementation_pre_12_inl.h \
 	nan_new.h \
+	nan_string_bytes.h \
 	nan_weak.h \
 	test/cpp/accessors.cpp \
 	test/cpp/asyncworker.cpp \

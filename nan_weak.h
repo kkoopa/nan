@@ -68,6 +68,7 @@ class NanWeakCallbackInfo {
   void *internal_fields_[kInternalFieldsInWeakCallback];
   v8::Persistent<v8::Value> persistent_;
   template<typename S, typename M> friend class NanPersistent;
+  template<typename S> friend class NanPersistentBase;
 #if NODE_MODULE_VERSION <= NODE_0_12_MODULE_VERSION
 # if NODE_MODULE_VERSION > NODE_0_10_MODULE_VERSION
   template<typename S>
@@ -200,7 +201,8 @@ NanWeakCallbackInfo<T> *NanWeakCallbackInfo<T>::unwrap(NAN_WEAK_CALLBACK_DATA_TY
 template<typename T>
 void NanWeakCallbackInfo<T>::invoke(NAN_WEAK_CALLBACK_SIG_ data) {
   NanWeakCallbackInfo<T> *cbinfo = unwrap(data);
-  cbinfo->persistent_.Reset();
+  cbinfo->persistent_.Dispose();
+  cbinfo->persistent_.Clear();
   cbinfo->callback_(*cbinfo);
   delete cbinfo;
 }
@@ -287,7 +289,7 @@ NAN_INLINE void NanPersistent<T, M>::SetWeak(
     }
     wcbd = new NanWeakCallbackInfo<P>(reinterpret_cast<NanPersistent<v8::Value>*>(this), callback, 0, internal_fields[0], internal_fields[1]);
     (*self)->SetAlignedPointerInInternalField(0, wcbd);
-    v8::PersistentBase<T>::SetPhantom(wcbd->invoketwofield, 0, count > 1 ? 1 : kNoInternalFieldIndex);
+    v8::PersistentBase<T>::SetPhantom(wcbd->invoketwofield, static_cast<NanWeakCallbackInfo<P>*>(0), count > 1 ? 1 : kNoInternalFieldIndex);
   }
 }
 #elif NODE_MODULE_VERSION > NODE_0_10_MODULE_VERSION
@@ -323,17 +325,17 @@ NAN_INLINE void NanPersistentBase<T>::SetWeak(
   NanWeakCallbackInfo<P> *wcbd;
   if (type == NanWeakCallbackType::kParameter) {
     wcbd = new NanWeakCallbackInfo<P>(reinterpret_cast<NanPersistent<v8::Value>*>(this), callback, parameter);
-    v8::PersistentBase<T>::SetWeak(wcbd, wcbd->invoke);
+    persistent.MakeWeak(wcbd, wcbd->invoke);
   } else {
     v8::Handle<T>* self = reinterpret_cast<v8::Handle<T>*>(this);
     assert((*self)->IsObject());
     int count = (*self)->InternalFieldCount();
     void *internal_fields[kInternalFieldsInWeakCallback] = {0, 0};
     for (int i = 0; i < count && i < kInternalFieldsInWeakCallback; i++) {
-      internal_fields[i] = (*self)->GetAlignedPointerFromInternalField(i);
+      internal_fields[i] = (*self)->GetPointerFromInternalField(i);
     }
     wcbd = new NanWeakCallbackInfo<P>(reinterpret_cast<NanPersistent<v8::Value>*>(this), callback, 0, internal_fields[0], internal_fields[1]);
-    v8::Persistent<T>::MakeWeak(wcbd, wcbd->invoke);
+    persistent.MakeWeak(wcbd, wcbd->invoke);
   }
 }
 #endif

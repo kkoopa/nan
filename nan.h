@@ -316,8 +316,7 @@ template<typename T, typename M> class NanPersistent :
 
 
 #else
-static const int kNoInternalFieldIndex = -1;
-
+template<typename P> class NanWeakCallbackInfo;
 template<typename T>
 class NanPersistentBase {
   v8::Persistent<T> persistent;
@@ -326,7 +325,7 @@ class NanPersistentBase {
 
  public:
   NAN_INLINE NanPersistentBase() :
-      persistent(), wrapper_class_id(0) {}
+      persistent() {}
 
   NAN_INLINE void Reset() {
     persistent.Dispose();
@@ -390,7 +389,7 @@ class NanPersistentBase {
   template<typename P>
   NAN_INLINE void SetWeak(
     P *parameter
-    , typename NanWeakCallbackData<T, P>::Callback callback
+    , typename NanWeakCallbackInfo<P>::Callback callback
     , NanWeakCallbackType type);
 
   NAN_INLINE void ClearWeak() { persistent.ClearWeak(); }

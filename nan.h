@@ -1577,6 +1577,12 @@ inline void NanSetAccessor(
   , Nan::imp::Sig signature = Nan::imp::Sig()) {
   NanScope scope;
 
+  Nan::imp::NativeGetter getter_ =
+      Nan::imp::GetterCallbackWrapper;
+  Nan::imp::NativeSetter setter_ =
+      setter ? Nan::imp::SetterCallbackWrapper : 0;
+
+
   v8::Local<v8::ObjectTemplate> otpl = NanNew<v8::ObjectTemplate>();
   otpl->SetInternalFieldCount(Nan::imp::kAccessorFieldCount);
   v8::Local<v8::Object> obj = NanNewInstance(otpl).ToLocalChecked();
@@ -1592,28 +1598,21 @@ inline void NanSetAccessor(
       , Nan::imp::kSetterIndex
       , Nan::imp::GetWrapper<NanSetterCallback,
             Nan::imp::SetterWrapper>(setter));
-    tpl->SetAccessor(
-        name
-      , Nan::imp::GetterCallbackWrapper
-      , Nan::imp::SetterCallbackWrapper
-      , obj
-      , settings
-      , attribute
-      , signature);
-  } else {
-    tpl->SetAccessor(
-        name
-      , Nan::imp::GetterCallbackWrapper
-      , 0
-      , obj
-      , settings
-      , attribute
-      , signature);
   }
 
   if (!val.IsEmpty()) {
     obj->SetInternalField(Nan::imp::kDataIndex, val);
   }
+
+  tpl->SetAccessor(
+      name
+    , getter_
+    , setter_
+    , obj
+    , settings
+    , attribute
+    , signature);
+
 }
 
 inline NanMaybe<bool> NanSetAccessor(
@@ -1672,7 +1671,6 @@ inline NanMaybe<bool> NanSetAccessor(
     , attribute));
 #endif
 }
-
 
 inline void NanSetNamedPropertyHandler(
     v8::Handle<v8::ObjectTemplate> tpl
@@ -1741,6 +1739,10 @@ inline void NanSetNamedPropertyHandler(
     obj->SetInternalField(Nan::imp::kDataIndex, val);
   }
 
+#if NODE_MODULE_VERSION > NODE_0_12_MODULE_VERSION
+  tpl->SetHandler(v8::NamedPropertyHandlerConfiguration(
+      getter_, setter_, query_, deleter_, enumerator_, obj));
+#else
   tpl->SetNamedPropertyHandler(
       getter_
     , setter_
@@ -1748,6 +1750,7 @@ inline void NanSetNamedPropertyHandler(
     , deleter_
     , enumerator_
     , obj);
+#endif
 }
 
 inline void NanSetIndexedPropertyHandler(
@@ -1817,6 +1820,10 @@ inline void NanSetIndexedPropertyHandler(
     obj->SetInternalField(Nan::imp::kDataIndex, val);
   }
 
+#if NODE_MODULE_VERSION > NODE_0_12_MODULE_VERSION
+  tpl->SetHandler(v8::IndexedPropertyHandlerConfiguration(
+      getter_, setter_, query_, deleter_, enumerator_, obj));
+#else
   tpl->SetIndexedPropertyHandler(
       getter_
     , setter_
@@ -1824,6 +1831,7 @@ inline void NanSetIndexedPropertyHandler(
     , deleter_
     , enumerator_
     , obj);
+#endif
 }
 
 //=== ObjectWrap ===============================================================

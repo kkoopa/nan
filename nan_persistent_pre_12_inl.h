@@ -98,6 +98,7 @@ class NanPersistentBase {
   NAN_INLINE explicit NanPersistentBase(v8::Persistent<T> that) :
       persistent(that) { }
   template<typename S, typename M> friend class NanPersistent;
+  template<typename S> friend class NanGlobal;
 };
 
 template<typename T>

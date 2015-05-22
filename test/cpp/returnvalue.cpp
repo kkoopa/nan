@@ -25,12 +25,11 @@ NAN_METHOD(ReturnPrimitive) {
 }
 
 NAN_METHOD(ReturnPersistent) {
-  info.GetReturnValue().Set(persistent);
+  info.GetReturnValue().Set(NanNew(persistent)); // TODO: FIX
 }
 
 void Init (v8::Handle<v8::Object> target) {
   persistent.Reset(NanNew(true));
-
   NanSet(target
     , NanNew<v8::String>("r").ToLocalChecked()
     , NanNew<v8::FunctionTemplate>(ReturnValue)->GetFunction()

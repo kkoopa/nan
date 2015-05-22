@@ -92,9 +92,31 @@ Factory<v8::External>::New(void * value) {
 Factory<v8::Function>::return_t
 Factory<v8::Function>::New( NanFunctionCallback callback
                           , v8::Handle<v8::Value> data) {
-  return v8::Function::New( v8::Isolate::GetCurrent()
-                          , callback
-                          , data);
+  v8::Isolate *isolate = v8::Isolate::GetCurrent();
+  v8::EscapableHandleScope scope(isolate);
+  static std::map<NanFunctionCallback, Nan::imp::FunctionWrapper*> cbmap;
+  v8::Local<v8::ObjectTemplate> tpl = v8::ObjectTemplate::New(isolate);
+  tpl->SetInternalFieldCount(Nan::imp::kFunctionFieldCount);
+#if defined(V8_MAJOR_VERSION) && (V8_MAJOR_VERSION > 4 ||                      \
+  (V8_MAJOR_VERSION == 4 && defined(V8_MINOR_VERSION) && V8_MINOR_VERSION >= 3))
+  v8::Local<v8::Object> obj = tpl->NewInstance(isolate->GetCurrentContext().ToLocalChecked());
+#else
+  v8::Local<v8::Object> obj = tpl->NewInstance();
+#endif
+
+  obj->SetAlignedPointerInInternalField(
+      Nan::imp::kFunctionIndex
+    , Nan::imp::GetWrapper<NanFunctionCallback,
+          Nan::imp::FunctionWrapper>(callback));
+  v8::Local<v8::Value> val = v8::Local<v8::Value>::New(isolate, data);
+
+  if (!val.IsEmpty()) {
+    obj->SetInternalField(Nan::imp::kDataIndex, val);
+  }
+
+  return scope.Escape(v8::Function::New( isolate
+                          , Nan::imp::FunctionCallbackWrapper
+                          , obj));
 }
 
 //=== Function Template ========================================================
@@ -103,10 +125,32 @@ Factory<v8::FunctionTemplate>::return_t
 Factory<v8::FunctionTemplate>::New( NanFunctionCallback callback
                                   , v8::Handle<v8::Value> data
                                   , v8::Handle<v8::Signature> signature) {
-  return v8::FunctionTemplate::New( v8::Isolate::GetCurrent()
-                                  , callback
-                                  , data
-                                  , signature);
+  v8::Isolate *isolate = v8::Isolate::GetCurrent();
+  v8::EscapableHandleScope scope(isolate);
+  static std::map<NanFunctionCallback, Nan::imp::FunctionWrapper*> cbmap;
+  v8::Local<v8::ObjectTemplate> tpl = v8::ObjectTemplate::New(isolate);
+  tpl->SetInternalFieldCount(Nan::imp::kFunctionFieldCount);
+#if defined(V8_MAJOR_VERSION) && (V8_MAJOR_VERSION > 4 ||                      \
+  (V8_MAJOR_VERSION == 4 && defined(V8_MINOR_VERSION) && V8_MINOR_VERSION >= 3))
+  v8::Local<v8::Object> obj = tpl->NewInstance(isolate->GetCurrentContext());
+#else
+  v8::Local<v8::Object> obj = tpl->NewInstance();
+#endif
+
+  obj->SetAlignedPointerInInternalField(
+      Nan::imp::kFunctionIndex
+    , Nan::imp::GetWrapper<NanFunctionCallback,
+          Nan::imp::FunctionWrapper>(callback));
+  v8::Local<v8::Value> val = v8::Local<v8::Value>::New(isolate, data);
+
+  if (!val.IsEmpty()) {
+    obj->SetInternalField(Nan::imp::kDataIndex, val);
+  }
+
+  return scope.Escape(v8::FunctionTemplate::New( isolate
+                                  , Nan::imp::FunctionCallbackWrapper
+                                  , obj
+                                  , signature));
 }
 
 //=== Number ===================================================================

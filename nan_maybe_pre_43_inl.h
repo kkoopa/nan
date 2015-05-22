@@ -14,7 +14,7 @@ class NanMaybeLocal {
  public:
   NAN_INLINE NanMaybeLocal() : val_(v8::Local<T>()) {}
 
-  template<class S>
+  template<typename S>
 # if NODE_MODULE_VERSION >= NODE_0_12_MODULE_VERSION
   NAN_INLINE NanMaybeLocal(v8::Local<S> that) : val_(that) {}
 # else
@@ -109,9 +109,12 @@ NanMaybe<bool> NanEquals(v8::Handle<v8::Value> a, v8::Handle<v8::Value>(b)) {
   return NanJust<bool>(a->Equals(b));
 }
 
-template<typename T>
-NAN_INLINE NanMaybeLocal<T> NanNewInstance(v8::Handle<T> h) {
-  return NanMaybeLocal<T>(h->NewInstance());
+NAN_INLINE NanMaybeLocal<v8::Object> NanNewInstance(v8::Handle<v8::Function> h) {
+  return NanMaybeLocal<v8::Object>(h->NewInstance());
+}
+
+NAN_INLINE NanMaybeLocal<v8::Object> NanNewInstance(v8::Handle<v8::ObjectTemplate> h) {
+  return NanMaybeLocal<v8::Object>(h->NewInstance());
 }
 
 NAN_INLINE
@@ -181,23 +184,6 @@ NAN_INLINE NanMaybe<bool> NanDelete(
     v8::Handle<v8::Object> obj
   , uint32_t index) {
   return NanJust<bool>(obj->Delete(index));
-}
-
-NAN_INLINE NanMaybe<bool> NanSetAccessor(
-    v8::Handle<v8::Object> obj
-  , v8::Handle<v8::String> name
-  , NanGetter getter
-  , NanSetter setter = 0
-  , v8::Handle<v8::Value> data = v8::Handle<v8::Value>()
-  , v8::AccessControl settings = v8::DEFAULT
-  , v8::PropertyAttribute attribute = v8::None) {
-  return NanJust<bool>(obj->SetAccessor(
-       name
-     , getter
-     , setter
-     , data
-     , settings
-     , attribute));
 }
 
 NAN_INLINE

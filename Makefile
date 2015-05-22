@@ -16,6 +16,8 @@ LINT_SOURCES = \
 	examples/async_pi_estimate/sync.h \
 	nan.h \
 	nan_callbacks.h \
+	nan_callbacks_12_inl.h \
+	nan_callbacks_pre_12_inl.h \
 	nan_converters.h \
 	nan_converters_43_inl.h \
 	nan_converters_pre_43_inl.h \
@@ -29,6 +31,7 @@ LINT_SOURCES = \
 	nan_string_bytes.h \
 	nan_weak.h \
 	test/cpp/accessors.cpp \
+	test/cpp/accessors2.cpp \
 	test/cpp/asyncworker.cpp \
 	test/cpp/asyncprogressworker.cpp \
 	test/cpp/asyncworkererror.cpp \

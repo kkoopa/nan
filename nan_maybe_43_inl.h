@@ -51,10 +51,14 @@ NanMaybe<bool> NanEquals(v8::Handle<v8::Value> a, v8::Handle<v8::Value>(b)) {
   return a->Equals(NanGetCurrentContext(), b);
 }
 
-template<typename T>
-NAN_INLINE NanMaybeLocal<T> NanNewInstance(v8::Handle<T> h) {
-  return h->NewInstance(NanGetCurrentContext());
+NAN_INLINE NanMaybeLocal<v8::Object> NanNewInstance(v8::Handle<v8::Function> h) {
+  return NanMaybeLocal<v8::Object>(h->NewInstance(NanGetCurrentContext()));
 }
+
+NAN_INLINE NanMaybeLocal<v8::Object> NanNewInstance(v8::Handle<v8::ObjectTemplate> h) {
+  return NanMaybeLocal<v8::Object>(h->NewInstance(NanGetCurrentContext()));
+}
+
 
 NAN_INLINE NanMaybeLocal<v8::Function> NanGetFunction(
     v8::Handle<v8::FunctionTemplate> t) {
@@ -119,24 +123,6 @@ NAN_INLINE NanMaybe<bool> NanDelete(
 NAN_INLINE
 NanMaybe<bool> NanDelete(v8::Handle<v8::Object> obj, uint32_t index) {
   return obj->Delete(NanGetCurrentContext(), index);
-}
-
-NAN_INLINE NanMaybe<bool> NanSetAccessor(
-    v8::Handle<v8::Object> obj
-  , v8::Handle<v8::String> name
-  , v8::AccessorNameGetterCallback getter
-  , v8::AccessorNameSetterCallback setter = 0
-  , v8::MaybeLocal<v8::Value> data = v8::MaybeLocal<v8::Value>()
-  , v8::AccessControl settings = v8::DEFAULT
-  , v8::PropertyAttribute attribute = v8::None) {
-  return obj->SetAccessor(
-       NanGetCurrentContext()
-     , name
-     , getter
-     , setter
-     , data
-     , settings
-     , attribute);
 }
 
 NAN_INLINE

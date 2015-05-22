@@ -14,6 +14,7 @@ class NanPersistentBase {
   v8::Persistent<T> persistent;
   template<typename U, typename M>
   friend v8::Local<U> NanNew(const NanPersistent<U, M> &p);
+  template<typename S> friend class NanReturnValue;
 
  public:
   NAN_INLINE NanPersistentBase() :
@@ -97,6 +98,7 @@ class NanPersistentBase {
  private:
   NAN_INLINE explicit NanPersistentBase(v8::Persistent<T> that) :
       persistent(that) { }
+  NAN_INLINE explicit NanPersistentBase(T *val) : persistent(val) {}
   template<typename S, typename M> friend class NanPersistent;
   template<typename S> friend class NanGlobal;
 };
@@ -181,15 +183,15 @@ template<typename T, typename M> class NanPersistent :
 template<typename T>
 class NanGlobal : public NanPersistentBase<T> {
   struct RValue {
-    NAN_INLINE explicit RValue(UniquePersistent* obj) : object(obj) {}
-    UniquePersistent* object;
+    NAN_INLINE explicit RValue(NanGlobal* obj) : object(obj) {}
+    NanGlobal* object;
   };
 
  public:
-  NAN_INLINE NanGlobal() : PersistentBase<T>(0) { }
+  NAN_INLINE NanGlobal() : NanPersistentBase<T>(0) { }
 
   template <typename S>
-  NAN_INLINE NanGlobal(Handle<S> that)
+  NAN_INLINE NanGlobal(v8::Handle<S> that)
       : NanPersistentBase<T>(v8::Persistent<T>::New(that)) {
     TYPE_CHECK(T, S);
   }
@@ -229,7 +231,7 @@ class NanGlobal : public NanPersistentBase<T> {
  private:
   NanGlobal(NanGlobal &);
   void operator=(NanGlobal &);
-  template typename<T> friend class NanReturnValue;
+  template<typename S> friend class NanReturnValue;
 };
 
 #endif  // NAN_PERSISTENT_PRE_12_INL_H_

@@ -20,6 +20,7 @@
 
 template<typename T> class NanFunctionCallbackInfo;
 template<typename T> class NanPropertyCallbackInfo;
+template<typename T> class NanGlobal;
 
 typedef void(*NanFunctionCallback)(const NanFunctionCallbackInfo<v8::Value>&);
 typedef void(*NanGetterCallback)

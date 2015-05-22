@@ -178,4 +178,58 @@ template<typename T, typename M> class NanPersistent :
   }
 };
 
+template<typename T>
+class NanGlobal : public NanPersistentBase<T> {
+  struct RValue {
+    NAN_INLINE explicit RValue(UniquePersistent* obj) : object(obj) {}
+    UniquePersistent* object;
+  };
+
+ public:
+  NAN_INLINE NanGlobal() : PersistentBase<T>(0) { }
+
+  template <typename S>
+  NAN_INLINE NanGlobal(Handle<S> that)
+      : NanPersistentBase<T>(v8::Persistent<T>::New(that)) {
+    TYPE_CHECK(T, S);
+  }
+
+  template <typename S>
+  NAN_INLINE NanGlobal(const NanPersistentBase<S> &that)
+    : NanPersistentBase<T>(that) {
+    TYPE_CHECK(T, S);
+  }
+  /**
+   * Move constructor.
+   */
+  NAN_INLINE NanGlobal(RValue rvalue)
+    : NanPersistentBase<T>(rvalue.object.persistent) {
+    rvalue.object->Reset();
+  }
+  NAN_INLINE ~NanGlobal() { this->Reset(); }
+  /**
+   * Move via assignment.
+   */
+  template<typename S>
+  NAN_INLINE NanGlobal &operator=(NanGlobal<S> rhs) {
+    TYPE_CHECK(T, S);
+    this->Reset(rhs.persistent);
+    rhs.Reset();
+    return *this;
+  }
+  /**
+   * Cast operator for moves.
+   */
+  NAN_INLINE operator RValue() { return RValue(this); }
+  /**
+   * Pass allows returning uniques from functions, etc.
+   */
+  NanGlobal Pass() { return NanGlobal(RValue(this)); }
+
+ private:
+  NanGlobal(NanGlobal &);
+  void operator=(NanGlobal &);
+  template typename<T> friend class NanReturnValue;
+};
+
 #endif  // NAN_PERSISTENT_PRE_12_INL_H_

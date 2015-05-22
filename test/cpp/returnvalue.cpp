@@ -8,7 +8,7 @@
 
 #include <nan.h>
 
-NanPersistent<v8::Boolean> persistent;
+NanGlobal<v8::Boolean> persistent;
 
 NAN_METHOD(ReturnValue) {
   const NanFunctionCallbackInfo<v8::Value> cbinfo = info;
@@ -24,8 +24,8 @@ NAN_METHOD(ReturnPrimitive) {
   info.GetReturnValue().Set(true);
 }
 
-NAN_METHOD(ReturnPersistent) {
-  info.GetReturnValue().Set(NanNew(persistent)); // TODO: FIX
+NAN_METHOD(ReturnGlobal) {
+  info.GetReturnValue().Set(persistent);
 }
 
 void Init (v8::Handle<v8::Object> target) {
@@ -40,7 +40,7 @@ void Init (v8::Handle<v8::Object> target) {
   );
   NanSet(target
     , NanNew<v8::String>("q").ToLocalChecked()
-    , NanNew<v8::FunctionTemplate>(ReturnPersistent)->GetFunction()
+    , NanNew<v8::FunctionTemplate>(ReturnGlobal)->GetFunction()
   );
 }
 

@@ -31,18 +31,17 @@ class NanReturnValue {
   }
 
   // Handle setters
-  template <typename S> inline void Set(v8::Handle<S> handle) {
+  template <typename S> inline void Set(const v8::Handle<S> &handle) {
     TYPE_CHECK(T, S);
     value_->Dispose();
     *value_ = v8::Persistent<T>::New(handle);
   }
 
-/*  template <typename S> inline void Set(const NanGlobal<S> &handle) {
+  template <typename S> inline void Set(const NanGlobal<S> &handle) {
     TYPE_CHECK(T, S);
     value_->Dispose();
     *value_ = v8::Persistent<T>::New(handle.persistent);
-    handle.Reset();
-  }*/
+  }
 
   // Fast primitive setters
   inline void Set(bool value) {

@@ -102,7 +102,7 @@ Factory<v8::Function>::New( NanFunctionCallback callback
 #if defined(V8_MAJOR_VERSION) && (V8_MAJOR_VERSION > 4 ||                      \
   (V8_MAJOR_VERSION == 4 && defined(V8_MINOR_VERSION) && V8_MINOR_VERSION >= 3))
   v8::Local<v8::Object> obj =
-      tpl->NewInstance(isolate->GetCurrentContext().ToLocalChecked());
+      tpl->NewInstance(isolate->GetCurrentContext()).ToLocalChecked();
 #else
   v8::Local<v8::Object> obj = tpl->NewInstance();
 #endif
@@ -135,7 +135,8 @@ Factory<v8::FunctionTemplate>::New( NanFunctionCallback callback
   tpl->SetInternalFieldCount(Nan::imp::kFunctionFieldCount);
 #if defined(V8_MAJOR_VERSION) && (V8_MAJOR_VERSION > 4 ||                      \
   (V8_MAJOR_VERSION == 4 && defined(V8_MINOR_VERSION) && V8_MINOR_VERSION >= 3))
-  v8::Local<v8::Object> obj = tpl->NewInstance(isolate->GetCurrentContext());
+  v8::Local<v8::Object> obj =
+      tpl->NewInstance(isolate->GetCurrentContext()).ToLocalChecked();
 #else
   v8::Local<v8::Object> obj = tpl->NewInstance();
 #endif

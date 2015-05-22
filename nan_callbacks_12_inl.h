@@ -32,7 +32,9 @@ class NanReturnValue {
   template <typename S> inline void Set(const NanGlobal<S> &handle) {
     TYPE_CHECK(T, S);
 #if defined(V8_MAJOR_VERSION) && (V8_MAJOR_VERSION > 4 ||                      \
-  (V8_MAJOR_VERSION == 4 && defined(V8_MINOR_VERSION) && V8_MINOR_VERSION >= 3))
+  (V8_MAJOR_VERSION == 4 && defined(V8_MINOR_VERSION) &&                       \
+  (V8_MINOR_VERSION > 5 || (V8_MINOR_VERSION == 5 &&                           \
+  defined(V8_BUILD_NUMBER) && V8_BUILD_NUMBER >= 8))))
     value_.Set(handle);
 #else
     value_.Set(*reinterpret_cast<const v8::Persistent<S>*>(&handle));
@@ -177,7 +179,7 @@ void GetterCallbackWrapper(
       cbinfo(info, obj->GetInternalField(kDataIndex));
   GetterWrapper *wrapper = static_cast<GetterWrapper*>(
       obj->GetAlignedPointerFromInternalField(kGetterIndex));
-  wrapper->callback(property, cbinfo);
+  wrapper->callback(property.As<v8::String>(), cbinfo);
 }
 
 typedef void (*NativeGetter)
@@ -193,7 +195,7 @@ void SetterCallbackWrapper(
       cbinfo(info, obj->GetInternalField(kDataIndex));
   SetterWrapper *wrapper = static_cast<SetterWrapper*>(
       obj->GetAlignedPointerFromInternalField(kSetterIndex));
-  wrapper->callback(property, value, cbinfo);
+  wrapper->callback(property.As<v8::String>(), value, cbinfo);
 }
 
 typedef void (*NativeSetter)(

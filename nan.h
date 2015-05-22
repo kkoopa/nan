@@ -1655,7 +1655,8 @@ inline NanMaybe<bool> NanSetAccessor(
 #if defined(V8_MAJOR_VERSION) && (V8_MAJOR_VERSION > 4 ||                      \
   (V8_MAJOR_VERSION == 4 && defined(V8_MINOR_VERSION) && V8_MINOR_VERSION >= 3))
   return obj->SetAccessor(
-      name
+      NanGetCurrentContext()
+    , name
     , getter_
     , setter_
     , dataobj

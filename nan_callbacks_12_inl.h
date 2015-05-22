@@ -12,6 +12,7 @@
 template<typename T>
 class NanReturnValue {
   v8::ReturnValue<T> value_;
+
  public:
   template <class S>
   explicit inline NanReturnValue(const v8::ReturnValue<S> &value) :
@@ -169,7 +170,8 @@ typedef void (*NativeFunction)(const v8::FunctionCallbackInfo<v8::Value> &);
 #if NODE_MODULE_VERSION > NODE_0_12_MODULE_VERSION
 static
 void GetterCallbackWrapper(
-    v8::Local<v8::Name> property, const v8::PropertyCallbackInfo<v8::Value> &info) {
+    v8::Local<v8::Name> property
+  , const v8::PropertyCallbackInfo<v8::Value> &info) {
   v8::Local<v8::Object> obj = info.Data().As<v8::Object>();
   NanPropertyCallbackInfo<v8::Value>
       cbinfo(info, obj->GetInternalField(kDataIndex));
@@ -194,12 +196,15 @@ void SetterCallbackWrapper(
   wrapper->callback(property, value, cbinfo);
 }
 
-typedef void (*NativeSetter)
-    (v8::Local<v8::Name>, v8::Local<v8::Value>, const v8::PropertyCallbackInfo<void> &);
+typedef void (*NativeSetter)(
+    v8::Local<v8::Name>
+  , v8::Local<v8::Value>
+  , const v8::PropertyCallbackInfo<void> &);
 #else
 static
 void GetterCallbackWrapper(
-    v8::Local<v8::String> property, const v8::PropertyCallbackInfo<v8::Value> &info) {
+    v8::Local<v8::String> property
+  , const v8::PropertyCallbackInfo<v8::Value> &info) {
   v8::Local<v8::Object> obj = info.Data().As<v8::Object>();
   NanPropertyCallbackInfo<v8::Value>
       cbinfo(info, obj->GetInternalField(kDataIndex));
@@ -224,13 +229,16 @@ void SetterCallbackWrapper(
   wrapper->callback(property, value, cbinfo);
 }
 
-typedef void (*NativeSetter)
-    (v8::Local<v8::String>, v8::Local<v8::Value>, const v8::PropertyCallbackInfo<void> &);
+typedef void (*NativeSetter)(
+    v8::Local<v8::String>
+  , v8::Local<v8::Value>
+  , const v8::PropertyCallbackInfo<void> &);
 #endif
 
 static
 void PropertyGetterCallbackWrapper(
-    v8::Local<v8::String> property, const v8::PropertyCallbackInfo<v8::Value> &info) {
+    v8::Local<v8::String> property
+  , const v8::PropertyCallbackInfo<v8::Value> &info) {
   v8::Local<v8::Object> obj = info.Data().As<v8::Object>();
   NanPropertyCallbackInfo<v8::Value>
       cbinfo(info, obj->GetInternalField(kDataIndex));
@@ -255,8 +263,10 @@ void PropertySetterCallbackWrapper(
   wrapper->callback(property, value, cbinfo);
 }
 
-typedef void (*NativePropertySetter)
-    (v8::Local<v8::String>, v8::Local<v8::Value>, const v8::PropertyCallbackInfo<v8::Value> &);
+typedef void (*NativePropertySetter)(
+    v8::Local<v8::String>
+  , v8::Local<v8::Value>
+  , const v8::PropertyCallbackInfo<v8::Value> &);
 
 static
 void PropertyEnumeratorCallbackWrapper(
@@ -289,7 +299,8 @@ typedef void (NativePropertyDeleter)
 
 static
 void PropertyQueryCallbackWrapper(
-    v8::Local<v8::String> property, const v8::PropertyCallbackInfo<v8::Integer> &info) {
+    v8::Local<v8::String> property
+  , const v8::PropertyCallbackInfo<v8::Integer> &info) {
   v8::Local<v8::Object> obj = info.Data().As<v8::Object>();
   NanPropertyCallbackInfo<v8::Integer>
       cbinfo(info, obj->GetInternalField(kDataIndex));
@@ -328,8 +339,10 @@ void IndexSetterCallbackWrapper(
   wrapper->callback(index, value, cbinfo);
 }
 
-typedef void (*NativeIndexSetter)
-    (uint32_t, v8::Local<v8::Value>, const v8::PropertyCallbackInfo<v8::Value> &);
+typedef void (*NativeIndexSetter)(
+    uint32_t
+  , v8::Local<v8::Value>
+  , const v8::PropertyCallbackInfo<v8::Value> &);
 
 static
 void IndexEnumeratorCallbackWrapper(

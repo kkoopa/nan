@@ -443,21 +443,8 @@ v8::Handle<v8::Integer> IndexQueryCallbackWrapper(
 
 typedef v8::Handle<v8::Integer> (*NativeIndexQuery)
     (uint32_t, const v8::AccessorInfo &);
-
-template<typename T, typename P>
-P *GetWrapper(T needle) {
-  static std::map<T, P*> haystack;
-  typename std::map<T, P*>::iterator it =
-      haystack.find(needle);
-
-  if (it == haystack.end()) {
-    return haystack.insert(it, std::make_pair(needle, new P(needle)))->second;
-  } else {
-    return it->second;
-  }
-}
 }  // end of namespace imp
 }  // end of namespace Nan
 
-#endif  // NAN_CALLBACKS_PRE_12_INLH_
+#endif  // NAN_CALLBACKS_PRE_12_INL_H_
 

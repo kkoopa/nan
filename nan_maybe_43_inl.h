@@ -51,11 +51,13 @@ NanMaybe<bool> NanEquals(v8::Handle<v8::Value> a, v8::Handle<v8::Value>(b)) {
   return a->Equals(NanGetCurrentContext(), b);
 }
 
-NAN_INLINE NanMaybeLocal<v8::Object> NanNewInstance(v8::Handle<v8::Function> h) {
+NAN_INLINE
+NanMaybeLocal<v8::Object> NanNewInstance(v8::Handle<v8::Function> h) {
   return NanMaybeLocal<v8::Object>(h->NewInstance(NanGetCurrentContext()));
 }
 
-NAN_INLINE NanMaybeLocal<v8::Object> NanNewInstance(v8::Handle<v8::ObjectTemplate> h) {
+NAN_INLINE
+NanMaybeLocal<v8::Object> NanNewInstance(v8::Handle<v8::ObjectTemplate> h) {
   return NanMaybeLocal<v8::Object>(h->NewInstance(NanGetCurrentContext()));
 }
 

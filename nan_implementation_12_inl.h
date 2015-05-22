@@ -16,9 +16,11 @@
 # pragma warning( push )
 # pragma warning( disable : 4530 )
 # include <string>
+# include <map>
 # pragma warning( pop )
 #else
 # include <string>
+# include <map>
 #endif
 
 namespace Nan { namespace imp {
@@ -99,7 +101,8 @@ Factory<v8::Function>::New( NanFunctionCallback callback
   tpl->SetInternalFieldCount(Nan::imp::kFunctionFieldCount);
 #if defined(V8_MAJOR_VERSION) && (V8_MAJOR_VERSION > 4 ||                      \
   (V8_MAJOR_VERSION == 4 && defined(V8_MINOR_VERSION) && V8_MINOR_VERSION >= 3))
-  v8::Local<v8::Object> obj = tpl->NewInstance(isolate->GetCurrentContext().ToLocalChecked());
+  v8::Local<v8::Object> obj =
+      tpl->NewInstance(isolate->GetCurrentContext().ToLocalChecked());
 #else
   v8::Local<v8::Object> obj = tpl->NewInstance();
 #endif

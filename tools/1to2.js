@@ -10,17 +10,6 @@
 var commander = require('commander'),
     fs = require('fs'),
     glob = require('glob'),
-    removed = [
-      'GetIndexedPropertiesExternalArrayDataLength',
-      'GetIndexedPropertiesExternalArrayData',
-      'GetIndexedPropertiesExternalArrayDataType',
-      'GetIndexedPropertiesPixelData',
-      'GetIndexedPropertiesPixelDataLength',
-      'HasIndexedPropertiesInExternalArrayData',
-      'HasIndexedPropertiesInPixelData',
-      'SetIndexedPropertiesToExternalArrayData',
-      'SetIndexedPropertiesToPixelData'],
-    removedregex = [],
     callbacks = [
       'NAN_METHOD',
       'NAN_GETTER',
@@ -35,7 +24,16 @@ var commander = require('commander'),
       'NAN_INDEX_ENUMERATOR',
       'NAN_INDEX_DELETER',
       'NAN_INDEX_QUERY'],
-    callbackregex = [],
+    removed = [
+      'GetIndexedPropertiesExternalArrayDataLength',
+      'GetIndexedPropertiesExternalArrayData',
+      'GetIndexedPropertiesExternalArrayDataType',
+      'GetIndexedPropertiesPixelData',
+      'GetIndexedPropertiesPixelDataLength',
+      'HasIndexedPropertiesInExternalArrayData',
+      'HasIndexedPropertiesInPixelData',
+      'SetIndexedPropertiesToExternalArrayData',
+      'SetIndexedPropertiesToPixelData'],
     toconverters = [
       'Boolean',
       'Number',
@@ -44,14 +42,13 @@ var commander = require('commander'),
       'Integer',
       'Uint32',
       'Int32'],
-    toconvertersregex = [],
     tovalues = [
       ['bool', 'Boolean'],
       ['double', 'Number'],
       ['int64_t', 'Integer'],
       ['uint32_t', 'Uint32'],
       ['int32_t', 'Int32']],
-    tovaluesregex = [],
+    patterns = [],
     length,
     i;
 
@@ -70,238 +67,297 @@ fs.readFile('package.json', 'utf8', function (err, data) {
   }
 });
 
+var groups = [];
+
+groups.push([0, ['_NAN_',
+  'NODE_SET_METHOD',
+  'NODE_SET_PROTOTYPE_METHOD',
+  'NanAsciiString',
+  'NanEscapeScope',
+  'NanReturnValue',
+  'NanUcs2String'].join('|')]);
+
+groups.push([1, ['(', [
+  'NanEscapableScope',
+  'NanReturnNull',
+  'NanReturnUndefined',
+  'NanScope'].join('|'), ')\\(\\)'].join('')]);
+
+groups.push([1, '(?:v8\\:\\:)?(TryCatch)']);
+
+groups.push([1, ['(NanNew)', '\\("[^\\"]*"\\)'].join('')]);
+
+groups.push([1, ['^.*?(', removed.join('|'), ')'].join('')]);
+
+groups.push([2, ['((', callbacks.join('|'), ')\\([^\\)]*\\)\\s*\\{)\\s*NanScope\\(\\)\\s*;'].join('')]);
+
+groups.push([3, ['([\\s\\(\\)])([^\\s\\(\\)]+)->To(', toconverters.join('|'), ')\\('].join('')]);
+
+groups.push([3, ['([\\s\\(\\)])([^\\s\\(\\)]+)->(', tovalues.map(function (x) { return x[1]; }).join('|'), 'Value)\\('].join('')]);
+
+groups.push([1, '(NAN_WEAK_CALLBACK)\\(([^\\s\\)]+)\\)']);
+
+groups.push([1, ['(', [
+  'NanDisposePersistent',
+  'NanObjectWrapHandle'].join('|'), ')\\s*\\(\\s*([^\\s\\)]+)'].join('')]);
+
+groups.push([1, '(NanMakeWeakPersistent)\\s*\\(\\s*([^\\s,]+)\\s*,']);
+
+
+/*groups.push([2, ['', [
+  'GetEndColumn',
+  'GetFunction',
+  'GetLineNumber',
+  'NewInstance',
+  'GetPropertyNames',
+  'GetOwnPropertyNames',
+  'GetSourceLine',
+  'GetStartColumn',
+  'ObjectProtoToString',
+  'ToArrayIndex',
+  'ToDetailString'].join('|'), ')\\('].join('')]);*/
+
+groups.push([3, ['([\\s])([^\\s]+)->(', [
+  'GetEndColumn',
+  'GetFunction',
+  'GetLineNumber',
+  'NewInstance',
+  'GetPropertyNames',
+  'GetOwnPropertyNames',
+  'GetSourceLine',
+  'GetStartColumn',
+  'ObjectProtoToString',
+  'ToArrayIndex',
+  'ToDetailString',
+  'CallAsConstructor',
+  'CallAsFunction',
+  'CloneElementAt',
+  'Delete',
+  'ForceSet',
+  'Get',
+  'GetPropertyAttributes',
+  'GetRealNamedProperty',
+  'GetRealNamedPropertyInPrototypeChain',
+  'Has',
+  'HasOwnProperty',
+  'HasRealIndexedProperty',
+  'HasRealNamedCallbackProperty',
+  'HasRealNamedProperty',
+  'Set',
+  'SetAccessor',
+  'SetIndexedPropertyHandler',
+  'SetNamedPropertyHandler',
+  'SetPrototype'].join('|'), ')\\('].join('')]);
+
+groups.push([2, ['NanNew(<(?:v8\\:\\:)?(', ['Date', 'String', 'RegExp'].join('|'), ')>)\\([^\\s\\)]*\\)'].join('')]);
+
+groups.push([3, '([\\s\\(\\)])([^\\s\\(\\)]+)->(Equals)\\(([^\\s\\)]+)']);
+
+groups.push([1, '(NanAssignPersistent)(?:<v8\\:\\:[^>]+>)?\\(([^,]+),\\s*([^\\s\\)]+)\\)']);
+
+groups.push([2, '(\\W)(args)(\\W)'])
+
+groups.push([2, '(\\W)(?:node\\:\\:)?(ObjectWrap)(\\W)']);
+
+groups.push([2, '(\\W)(?:v8\\:\\:)?(Persistent)(\\W)']);
+
+function groupcount(s) {
+  var positive = s.match(/\((?!\?)/g),
+      negative = s.match(/\\\(/g);
+  return (positive ? positive.length : 0) - (negative ? negative.length : 0);
+}
+
+var total = 0;
+for (i = 1, length = groups.length; i < length; i++) {
+	total += groupcount(groups[i - 1][1]);
+	groups[i][0] += total;
+}
+
+master = new RegExp(groups.map(function (a) { return a[1]; }).join('|'), 'gm');
 
 function replace(file, s) {
-  var i, length;
+	fs.writeFile(file, s.replace(master, function () {
+		switch (arguments[groups[0][0]]) {
+			case '_NAN_':
+				return 'NAN_';
+			case 'NODE_SET_METHOD':
+				return 'NanSetMethod';
+			case 'NODE_SET_PROTOTYPE_METHOD':
+				return 'NanSetPrototypeMethod';
+			case 'NanAsciiString':
+				return 'NanUtf8String';
+			case 'NanEscapeScope':
+				return 'scope.Escape';
+			case 'NanReturnNull':
+				return 'info.GetReturnValue().SetNull';
+			case 'NanReturnValue':
+				return 'info.GetReturnValue().Set';
+			case 'NanUcs2String':
+				return 'v8::String::Value';
+			default:
+		}
 
-  for (i = 0, length = removedregex.length; i < length; i++) {
-    s = s.replace(removedregex[i], function (match) {
-      return '// ERROR: Rewrite using Buffer\n' +  match;
+		switch (arguments[groups[1][0]]) {
+			case 'NanEscapableScope':
+				return 'NanEscapableScope scope'
+			case 'NanReturnUndefined':
+				return 'return';
+			case 'NanScope':
+				return 'NanScope scope';
+			default:
+		}
+
+		if (arguments[groups[2][0]] === 'TryCatch') {
+			return 'NanTryCatch';
+		}
+
+		if (arguments[groups[3][0]] === 'NanNew') {
+			return [arguments[0], '.ToLocalChecked()'].join('');
+		}
+
+		switch (arguments[groups[4][0]]) {
+			case 'GetIndexedPropertiesExternalArrayData':
+			case 'GetIndexedPropertiesExternalArrayDataLength':
+			case 'GetIndexedPropertiesExternalArrayDataType':
+			case 'GetIndexedPropertiesPixelData':
+			case 'GetIndexedPropertiesPixelDataLength':
+			case 'HasIndexedPropertiesInExternalArrayData':
+			case 'HasIndexedPropertiesInPixelData':
+			case 'SetIndexedPropertiesToExternalArrayData':
+			case 'SetIndexedPropertiesToPixelData':
+				return '// ERROR: Rewrite using Buffer\n' +  arguments[0];
+			default:
+		}
+
+		switch (arguments[groups[5][0]]) {
+			case 'NAN_GETTER':
+			case 'NAN_METHOD':
+			case 'NAN_SETTER':
+			case 'NAN_INDEX_DELETER':
+			case 'NAN_INDEX_ENUMERATOR':
+			case 'NAN_INDEX_GETTER':
+			case 'NAN_INDEX_QUERY':
+			case 'NAN_INDEX_SETTER':
+			case 'NAN_PROPERTY_DELETER':
+			case 'NAN_PROPERTY_ENUMERATOR':
+			case 'NAN_PROPERTY_GETTER':
+			case 'NAN_PROPERTY_QUERY':
+			case 'NAN_PROPERTY_SETTER':
+				return arguments[groups[5][0] - 1];
+			default:
+		}
+
+		switch (arguments[groups[6][0]]) {
+			case 'Boolean':
+			case 'Int32':
+			case 'Integer':
+			case 'Number':
+			case 'Object':
+			case 'String':
+			case 'Uint32':
+				return [arguments[groups[6][0] - 2], 'NanTo<v8::', arguments[groups[6][0]], '>(',  arguments[groups[6][0] - 1]].join('');
+			default:
+		}
+
+		switch (arguments[groups[7][0]]) {
+			case 'BooleanValue':
+				return [arguments[groups[7][0] - 2], 'NanTo<bool>(', arguments[groups[7][0] - 1]].join('');
+			case 'Int32Value':
+				return [arguments[groups[7][0] - 2], 'NanTo<int32_t>(', arguments[groups[7][0] - 1]].join('');
+			case 'IntegerValue':
+				return [arguments[groups[7][0] - 2], 'NanTo<int64_t>(', arguments[groups[7][0] - 1]].join('');
+			case 'Uint32Value':
+				return [arguments[groups[7][0] - 2], 'NanTo<uint32_t>(', arguments[groups[7][0] - 1]].join('');
+			default:
+		}
+
+		if (arguments[groups[8][0]] === 'NAN_WEAK_CALLBACK') {
+			return ['template<typename T>\nvoid ',
+				arguments[groups[8][0] + 1], '(const NanWeakCallbackInfo<T> &data)'].join('');
+		}
+
+		switch (arguments[groups[9][0]]) {
+			case 'NanDisposePersistent':
+				return [arguments[groups[9][0] + 1], '.Reset('].join('');
+			case 'NanObjectWrapHandle':
+				return [arguments[groups[9][0] + 1], '->handle('].join('');
+			default:
+		}
+
+		if (arguments[groups[10][0]] === 'NanMakeWeakPersistent') {
+			return arguments[groups[10][0] + 1] + '.SetWeak(';
+		}
+
+		switch (arguments[groups[11][0]]) {
+			case 'GetEndColumn':
+			case 'GetFunction':
+			case 'GetLineNumber':
+			case 'GetOwnPropertyNames':
+			case 'GetPropertyNames':
+			case 'GetSourceLine':
+			case 'GetStartColumn':
+			case 'NewInstance':
+			case 'ObjectProtoToString':
+			case 'ToArrayIndex':
+			case 'ToDetailString':
+				return [arguments[groups[11][0] - 2], 'Nan', arguments[groups[11][0]], '(', arguments[groups[11][0] - 1]].join('');
+			case 'CallAsConstructor':
+			case 'CallAsFunction':
+			case 'CloneElementAt':
+			case 'Delete':
+			case 'ForceSet':
+			case 'Get':
+			case 'GetPropertyAttributes':
+			case 'GetRealNamedProperty':
+			case 'GetRealNamedPropertyInPrototypeChain':
+			case 'Has':
+			case 'HasOwnProperty':
+			case 'HasRealIndexedProperty':
+			case 'HasRealNamedCallbackProperty':
+			case 'HasRealNamedProperty':
+			case 'Set':
+			case 'SetAccessor':
+			case 'SetIndexedPropertyHandler':
+			case 'SetNamedPropertyHandler':
+			case 'SetPrototype':
+				return [arguments[groups[11][0] - 2], 'Nan', arguments[groups[11][0]], '(', arguments[groups[11][0] - 1], ', '].join('');
+			default:
+		}
+
+		switch (arguments[groups[12][0]]) {
+			case 'Date':
+			case 'String':
+			case 'RegExp':
+				return ['NanNew', arguments[groups[12][0]], '(', arguments[groups[12][0] + 1], ').ToLocalChecked()'].join('');
+			default:
+		}
+
+		if (arguments[groups[13][0]] === 'Equals') {
+			return [arguments[groups[13][0] - 1], 'NanEquals(', arguments[groups[13][0] - 1], ', ', arguments[groups[13][0] + 1]].join('');
+		}
+
+		if (arguments[groups[14][0]] === 'NanAssignPersistent') {
+			return [arguments[groups[14][0] + 1], '.Reset(', arguments[groups[14][0] + 2], ')'].join('');
+		}
+
+		if (arguments[groups[15][0]] === 'args') {
+			return [arguments[groups[15][0] - 1], 'info', arguments[groups[15][0] + 1]].join('');
+		}
+
+		if (arguments[groups[16][0]] === 'ObjectWrap') {
+			return [arguments[groups[16][0] - 1], 'NanObjectWrap', arguments[groups[16][0] + 1]].join('');
+		}
+
+		if (arguments[groups[17][0]] === 'Persistent') {
+			return [arguments[groups[17][0] - 1], 'NanPersistent', arguments[groups[17][0] + 1]].join('');
+		}
+
+		throw 'Unhandled match: ' + arguments[0];
+	}), function (err) {
+      if (err) {
+        throw err;
+      }
     });
-  }
-
-  for (i = 0, length = callbackregex.length; i < length; i++) {
-    s = s.replace(callbackregex[i], function (match, p1) {
-      return p1;
-    });
-  }
-
-  for (i = 0, length = tovaluesregex.length; i < length; i++) {
-    s = s.replace(tovaluesregex[i], function (match, p1) {
-      return ['NanTo<', tovalues[i][0], '>(',  p1].join('');
-    });
-  }
-
-  for (i = 0, length = toconverters.length; i < length; i++) {
-    s = s.replace(toconvertersregex[i], function (match, p1) {
-      return ['NanTo<', toconverters[i], '>(',  p1].join('');
-    });
-  }
-
-  s = s.replace(/(\S+)->ToDetailString\(/, function (match, p1) {
-    return 'NanToDetailString(' + p1;
-  });
-
-  s = s.replace(/(\S+)->ToArrayIndex\(/, function (match, p1) {
-    return 'NanToArrayIndex(' + p1;
-  });
-
-
-  s = s.replace(/(\W)args(\W)/g, function (match, p1, p2) {
-    return [p1, 'info', p2].join('');
-  });
-
-  s = s.replace(/NanNew(<(?:v8\:\:)?String>)?\("(.*)"\)/g, function(match, p1, p2) {
-    return ['NanNew', p1, '("', p2, '").ToLocalChecked()'].join('');
-  });
-
-  s = s.replace(/NanNew(<(?:v8\:\:)?Date>)\(.*\)/g, function(match, p1, p2) {
-    return ['NanNew', p1, '(', p2, ').ToLocalChecked()'].join('');
-  });
-
-  s = s.replace(/NanNew(<(?:v8\:\:)?RegExp>)\(.*\)/g, function(match, p1, p2) {
-    return ['NanNew', p1, '(', p2, ').ToLocalChecked()'].join('');
-  });
-
-  s = s.replace(/NanScope\(\)/g, 'NanScope scope');
-
-  s = s.replace(/NanEscapableScope\(\)/g, 'NanEscapableScope scope');
-
-  s = s.replace(/NanEscapeScope/g, 'scope.Escape');
-
-  s = s.replace(/NanReturnValue/g, 'info.GetReturnValue().Set');
-
-  s = s.replace(/NanReturnUndefined\(\)/g, 'return');
-
-  s = s.replace(/NanReturnNull/g, 'info.GetReturnValue().SetNull');
-
-  s = s.replace(/NanAssignPersistent(?:<v8\:\:.*>)?\((.*),\s?(.*)\)/g,
-      function(match, p1, p2){
-    return [p1, '.Reset(', p2, ')'].join('');
-  })
-
-  s = s.replace(/NanDisposePersistent\s*\(\s*(\w+)/g, function(match, p1) {
-    return p1 + '.Reset(';
-  });
-
-  s = s.replace(/(\W)(?:v8\:\:)?Persistent(\W)/g, function(match, p1, p2) {
-    return [p1, 'NanPersistent', p2].join(''); });
-
-  s = s.replace(/NanSetWeak\s*\(\s*(\w+)\s*,/g, function(match, p1) {
-    return p1 + '.SetWeak(';
-  });
-
-  s = s.replace(/NanObjectWrapHandle\s*\((\w+)/g, function (match, p1) {
-    return p1 + '->handle(';
-  });
-
-  s = s.replace(/(\W)(?:node\:\:)?ObjectWrap(\W)/g, function(match, p1, p2) {
-    return [p1, 'NanObjectWrap', p2].join('');
-  });
-
-  s = s.replace(/(?:v8\:\:)?TryCatch/g, function() { return 'NanTryCatch'; });
-
-  s = s.replace(/(\w+)->StackTrace\(\)/g, function (match) {
-    return match + '.ToLocalChecked()';
-  });
-
-  s = s.replace(/(\w+)->Equals\((\w+)/, function (match, p1, p2) {
-    return ['NanEquals(', p1, ', ', p2].join('');
-  });
-
-  s = s.replace(/(\w+)->NewInstance\(/g, function (match, p1) {
-    return 'NanNewInstance(' + p1;
-  });
-
-  s = s.replace(/(\w+)->GetFunction\(/g, function (match, p1) {
-    return 'NanGetFunction(' + p1;
-  });
-
-  s = s.replace(/(\w+)->Set\(/g, function (match, p1) {
-    return 'NanSet(' + p1 + ', ';
-  });
-
-  s = s.replace(/(\w+)->ForceSet\(/g, function (match, p1) {
-    return 'NanForceSet(' + p1 + ', ';
-  });
-
-  s = s.replace(/(\w+)->Get\(/g, function (match, p1) {
-    return 'NanGet(' + p1 + ', ';
-  });
-
-  s = s.replace(/(\w+)->GetPropertyAttributes\(/g, function (match, p1) {
-    return 'NanGetPropertyAttributes(' + p1 + ', ';
-  });
-
-  s = s.replace(/(\w+)->Has\(/g, function (match, p1) {
-    return 'NanHas(' + p1 + ', ';
-  });
-
-  s = s.replace(/(\w+)->Delete\(/g, function (match, p1) {
-    return 'NanDelete(' + p1 + ', ';
-  });
-
-  s = s.replace(/(\w+)->GetPropertyNames\(/g, function (match, p1) {
-    return 'NanGetPropertyNames(' + p1;
-  });
-
-  s = s.replace(/(\w+)->GetOwnPropertyNames\(/g, function (match, p1) {
-    return 'NanGetOwnPropertyNames(' + p1;
-  });
-
-  s = s.replace(/(\w+)->SetPrototype\(/g, function (match, p1) {
-    return 'NanSetPrototype(' + p1 + ', ';
-  });
-
-  s = s.replace(/(\w+)->ObjectProtoToString\(/g, function (match, p1) {
-    return 'NanObjectProtoToString(' + p1;
-  });
-
-  s = s.replace(/(\w+)->HasOwnProperty\(/g, function (match, p1) {
-    return 'NanHasOwnProperty(' + p1 + ', ';
-  });
-
-  s = s.replace(/(\w+)->HasRealNamedProperty\(/g, function (match, p1) {
-    return 'NanHasRealNamedProperty(' + p1 + ', ';
-  });
-
-  s = s.replace(/(\w+)->HasRealIndexedProperty\(/g, function (match, p1) {
-    return 'NanHasRealIndexedProperty(' + p1 + ', ';
-  });
-
-  s = s.replace(/(\w+)->HasRealNamedCallbackProperty\(/g, function (match, p1) {
-    return 'NanHasRealNamedCallbackProperty(' + p1 + ', ';
-  });
-
-  s = s.replace(/(\w+)->GetRealNamedPropertyInPrototypeChain\(/g,
-      function (match, p1) {
-    return 'NanGetRealNamedPropertyInPrototypeChain(' + p1 + ', ';
-  });
-
-  s = s.replace(/(\w+)->GetRealNamedProperty\(/g, function (match, p1) {
-    return 'NanGetRealNamedProperty(' + p1 + ', ';
-  });
-
-  s = s.replace(/(\w+)->CallAsFunction\(/g,
-      function (match, p1) {
-    return 'NanCallAsFunction(' + p1 + ', ';
-  });
-
-  s = s.replace(/(\w+)->CallAsConstructor\(/g,
-      function (match, p1) {
-    return 'NanCallAsConstructor(' + p1 + ', ';
-  });
-
-  s = s.replace(/(\w+)->GetSourceLine\(/g,
-      function (match, p1) {
-    return 'NanGetSourceLine(' + p1;
-  });
-
-  s = s.replace(/(\w+)->GetLineNumber\(/g,
-      function (match, p1) {
-    return 'NanGetLineNumber(' + p1;
-  });
-
-  s = s.replace(/(\w+)->GetStartColumn\(/g,
-      function (match, p1) {
-    return 'NanGetStartColumn(' + p1;
-  });
-
-  s = s.replace(/(\w+)->GetEndColumn\(/g,
-      function (match, p1) {
-    return 'NanGetEndColumn(' + p1;
-  });
-
-  s = s.replace(/(\w+)->CloneElementAt\(/g,
-      function (match, p1) {
-    return 'NanCloneElementAt(' + p1 + ', ';
-  });
-
-  s = s.replace(/(\w+)->\(/g,
-      function (match, p1) {
-    return 'NanGetStartColumn(' + p1;
-  });
-
-  s = s.replace(/NAN_WEAK_CALLBACK\(([^\)]+)\)/, function (match, p1) {
-    return ['template<typename T>\nvoid ',
-        p1, '(const NanWeakCallbackInfo<T> &data)'].join('');
-  });
-
-  s = s.replace(/NODE_SET_METHOD/g, 'NanSetMethod');
-
-  s = s.replace(/NODE_SET_PROTOTYPE_METHOD/g, 'NanSetPrototypeMethod');
-
-  s = s.replace(/NanAsciiString/g, 'NanUtf8String');
-
-  s = s.replace(/NanUcs2String/g, 'v8::String::Value');
-
-  s = s.replace(/_NAN_/g, 'NAN_');
-
-  fs.writeFile(file, s, function (err) {
-    if (err) {
-      throw err;
-    }
-  });
 }
 
 function processFile(file) {
@@ -312,25 +368,6 @@ function processFile(file) {
 
     replace(file, data);
   });
-}
-
-for (i = 0, length = removed.length; i < length; i++) {
-  removedregex[i] = new RegExp('^(.*)\\W' + removed[i] + '\\W(.*)', 'm');
-}
-
-for (i = 0, length = callbacks.length; i < length; i++) {
-  callbackregex[i] = new RegExp(
-      '(' + callbacks[i] + '\\(.*\\)\\s*\\{)\\s*NanScope\\(\\)\\s*;', 'g');
-}
-
-for (i = 0, length = toconverters.length; i < length; i++) {
-  toconvertersregex[i] =
-      new RegExp('(\\S+)->To' + toconverters[i] + '\\(', 'g');
-}
-
-for (i = 0, length = tovalues.length; i < length; i++) {
-  tovaluesregex[i] =
-      new RegExp('(\\S+)->' + tovalues[i][1] + 'Value\\(', 'g');
 }
 
 for (i = 2, length = process.argv.length; i < length; i++) {
